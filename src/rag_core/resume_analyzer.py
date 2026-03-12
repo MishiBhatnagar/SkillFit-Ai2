@@ -1,28 +1,34 @@
 """
-RAG-based Resume Analyzer Core Module - Day 2
+RAG-based Resume Analyzer Core Module - Day 4 (Embeddings)
 """
 
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import faiss
 import PyPDF2
 import re
 import os
+import json
 from typing import List, Dict, Any, Optional
+from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 class ResumeAnalyzer:
-    def __init__(self):
-        """Initialize the Resume Analyzer"""
+    def __init__(self, model_name='all-MiniLM-L6-v2'):
+        """Initialize with embedding model"""
+        print(f"🔄 Loading embedding model: {model_name}...")
+        self.model = SentenceTransformer(model_name)
+        self.index = None
         self.resumes = []
-        print("✅ ResumeAnalyzer initialized!")
+        self.metadata = []
+        self.embeddings = []
+        print(f"✅ Model loaded! Embedding dimension: {self.model.get_sentence_embedding_dimension()}")
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
-        """
-        Extract text content from a PDF file
-        
-        Args:
-            pdf_path: Path to the PDF file
-            
-        Returns:
-            Extracted text as string
-        """
+        """Extract text from PDF"""
         text = ""
         try:
             with open(pdf_path, 'rb') as file:
@@ -38,20 +44,10 @@ class ResumeAnalyzer:
             return ""
     
     def extract_contact_info(self, text: str) -> Dict[str, str]:
-        """
-        Extract email and phone from text
-        
-        Args:
-            text: Resume text content
-            
-        Returns:
-            Dictionary with email and phone
-        """
-        # Email pattern
+        """Extract email and phone"""
         email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
         emails = re.findall(email_pattern, text)
         
-        # Phone pattern (simple)
         phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
         phones = re.findall(phone_pattern, text)
         
@@ -61,18 +57,8 @@ class ResumeAnalyzer:
         }
     
     def extract_skills(self, text: str, skill_list: Optional[List[str]] = None) -> List[str]:
-        """
-        Extract skills from text
-        
-        Args:
-            text: Resume text content
-            skill_list: Optional custom skill list
-            
-        Returns:
-            List of found skills
-        """
+        """Extract skills from text"""
         if skill_list is None:
-            # Common tech skills
             skill_list = [
                 'python', 'java', 'javascript', 'react', 'node', 'sql',
                 'mongodb', 'aws', 'docker', 'kubernetes', 'tensorflow',
@@ -84,24 +70,33 @@ class ResumeAnalyzer:
         
         text_lower = text.lower()
         found_skills = []
-        
         for skill in skill_list:
             if skill.lower() in text_lower:
                 found_skills.append(skill)
         
         return found_skills
     
-    def process_resume(self, pdf_path: str, candidate_name: str = "") -> Dict[str, Any]:
-        """
-        Process a single resume
+    def chunk_text(self, text: str, chunk_size: int = 300, overlap: int = 50) -> List[str]:
+        """Split text into overlapping chunks for better search"""
+        words = text.split()
+        chunks = []
         
-        Args:
-            pdf_path: Path to the PDF resume
-            candidate_name: Optional candidate name
-            
-        Returns:
-            Dictionary with extracted information
-        """
+        for i in range(0, len(words), chunk_size - overlap):
+            chunk = ' '.join(words[i:i + chunk_size])
+            if chunk:
+                chunks.append(chunk)
+        
+        print(f"    📝 Created {len(chunks)} text chunks")
+        return chunks
+    
+    def create_embeddings(self, chunks: List[str]) -> np.ndarray:
+        """Create embeddings for text chunks"""
+        print(f"    🧮 Creating embeddings for {len(chunks)} chunks...")
+        embeddings = self.model.encode(chunks)
+        return embeddings
+    
+    def process_resume(self, pdf_path: str, candidate_name: str = "") -> Dict[str, Any]:
+        """Process a single resume with embeddings"""
         print(f"\n  📄 Processing: {os.path.basename(pdf_path)}")
         
         # Extract text
@@ -109,69 +104,67 @@ class ResumeAnalyzer:
         if not text:
             raise ValueError("No text extracted from PDF")
         
-        # Extract information
+        # Extract metadata
         contact = self.extract_contact_info(text)
         skills = self.extract_skills(text)
         
-        # Get candidate name from filename if not provided
+        # Get candidate name
         if not candidate_name:
             candidate_name = os.path.splitext(os.path.basename(pdf_path))[0]
             candidate_name = candidate_name.replace('_', ' ').title()
         
-        result = {
-            'text': text[:500] + "...",  # Store preview only for now
+        # Chunk text and create embeddings
+        chunks = self.chunk_text(text)
+        embeddings = self.create_embeddings(chunks)
+        
+        print(f"    ✅ Found {len(skills)} skills")
+        print(f"    ✅ Email: {contact['email']}")
+        print(f"    ✅ Embeddings shape: {embeddings.shape}")
+        
+        return {
+            'text': text,
+            'chunks': chunks,
+            'embeddings': embeddings,
             'metadata': {
                 'candidate_name': candidate_name,
                 'email': contact['email'],
                 'phone': contact['phone'],
                 'skills': skills,
                 'filename': os.path.basename(pdf_path),
-                'skill_count': len(skills)
+                'chunk_count': len(chunks),
+                'embedding_dim': embeddings.shape[1],
+                'processed_date': datetime.now().isoformat()
             }
         }
-        
-        print(f"    ✅ Found {len(skills)} skills")
-        print(f"    ✅ Email: {contact['email']}")
-        
-        return result
     
-    def test_with_sample(self, pdf_path: str):
-        """
-        Test the analyzer with a sample resume
-        """
-        print("\n" + "="*50)
-        print("🔬 Testing Resume Analyzer")
-        print("="*50)
+    def test_embeddings(self, pdf_path: str):
+        """Test embedding generation"""
+        print("\n" + "="*60)
+        print("🔬 Testing Embedding Generation")
+        print("="*60)
         
         try:
             result = self.process_resume(pdf_path)
             
             print("\n📊 Results:")
             print(f"  Candidate: {result['metadata']['candidate_name']}")
-            print(f"  Email: {result['metadata']['email']}")
-            print(f"  Phone: {result['metadata']['phone']}")
-            print(f"  Skills ({len(result['metadata']['skills'])}):")
+            print(f"  Chunks: {result['metadata']['chunk_count']}")
+            print(f"  Embedding dim: {result['metadata']['embedding_dim']}")
+            print(f"  Embeddings shape: {result['embeddings'].shape}")
+            print(f"  Sample embedding (first 5 values): {result['embeddings'][0][:5]}")
             
-            # Show skills in columns
-            skills = result['metadata']['skills']
-            for i in range(0, len(skills), 4):
-                row = skills[i:i+4]
-                print("    " + "  ".join(f"{s:<15}" for s in row))
-            
-            print("\n✅ Test successful!")
+            print("\n✅ Embedding test successful!")
             
         except Exception as e:
             print(f"❌ Test failed: {e}")
         
-        print("="*50)
+        print("="*60)
 
 if __name__ == "__main__":
     # Quick test
     analyzer = ResumeAnalyzer()
-    
-    # Test with a sample file if it exists
     test_file = "data/resumes/alex_chen_python.pdf"
     if os.path.exists(test_file):
-        analyzer.test_with_sample(test_file)
+        analyzer.test_embeddings(test_file)
     else:
         print("No test resume found. Run create_sample_resumes.py first!")
