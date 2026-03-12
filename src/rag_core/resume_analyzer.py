@@ -137,6 +137,67 @@ class ResumeAnalyzer:
             }
         }
     
+
+    def save_embeddings(self, path: str = "data/embeddings"):
+        """Save embeddings and metadata to disk"""
+        os.makedirs(path, exist_ok=True)
+        
+        # Save embeddings
+        if len(self.embeddings) > 0:
+            np.save(f"{path}/embeddings.npy", self.embeddings)
+        
+        # Save metadata
+        metadata = [r['metadata'] for r in self.resumes]
+        with open(f"{path}/metadata.json", 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        # Save chunks
+        chunks_data = [{'filename': r['metadata']['filename'], 'chunks': r['chunks']} 
+                      for r in self.resumes]
+        with open(f"{path}/chunks.json", 'w') as f:
+            json.dump(chunks_data, f, indent=2)
+        
+        print(f"✅ Saved embeddings to {path}")
+        print(f"   - embeddings.npy: {self.embeddings.shape}")
+        print(f"   - metadata.json: {len(metadata)} resumes")
+        print(f"   - chunks.json: {len(chunks_data)} files")
+    
+    def load_embeddings(self, path: str = "data/embeddings") -> bool:
+        """Load embeddings and metadata from disk"""
+        try:
+            # Load embeddings
+            embeddings_path = f"{path}/embeddings.npy"
+            if os.path.exists(embeddings_path):
+                self.embeddings = np.load(embeddings_path)
+            
+            # Load metadata
+            with open(f"{path}/metadata.json", 'r') as f:
+                metadata = json.load(f)
+            
+            # Load chunks
+            with open(f"{path}/chunks.json", 'r') as f:
+                chunks_data = json.load(f)
+            
+            # Reconstruct resumes
+            self.resumes = []
+            for i, meta in enumerate(metadata):
+                chunks_info = next((c for c in chunks_data if c['filename'] == meta['filename']), None)
+                if chunks_info:
+                    self.resumes.append({
+                        'metadata': meta,
+                        'chunks': chunks_info['chunks']
+                    })
+            
+            print(f"✅ Loaded embeddings from {path}")
+            print(f"   - embeddings: {self.embeddings.shape if hasattr(self, 'embeddings') else 'None'}")
+            print(f"   - resumes: {len(self.resumes)}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to load embeddings: {e}")
+            return False
+   
+    
     def test_embeddings(self, pdf_path: str):
         """Test embedding generation"""
         print("\n" + "="*60)
