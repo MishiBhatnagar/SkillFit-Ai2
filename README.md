@@ -4,7 +4,7 @@ A collaborative project for intelligent resume analysis using RAG technology.
 
 ## Team
 - MishiBhatnagar - Core RAG, Backend API
-- [Friend's Name] - Frontend, Vector Search
+- OjaswiPrashant - Frontend, Vector Search
 
 ## Setup Instructions
 1. Clone the repo
