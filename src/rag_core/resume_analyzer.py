@@ -1,5 +1,9 @@
 """
+<<<<<<< HEAD
 RAG-based Resume Analyzer Core Module - Day 4 (Complete)
+=======
+RAG-based Resume Analyzer Core Module - Day 4 (Embeddings)
+>>>>>>> main
 """
 
 import numpy as np
@@ -103,13 +107,25 @@ class ResumeAnalyzer:
         if not text:
             raise ValueError("No text extracted from PDF")
         
+<<<<<<< HEAD
         contact = self.extract_contact_info(text)
         skills = self.extract_skills(text)
         
+=======
+        # Extract metadata
+        contact = self.extract_contact_info(text)
+        skills = self.extract_skills(text)
+        
+        # Get candidate name
+>>>>>>> main
         if not candidate_name:
             candidate_name = os.path.splitext(os.path.basename(pdf_path))[0]
             candidate_name = candidate_name.replace('_', ' ').title()
         
+<<<<<<< HEAD
+=======
+        # Chunk text and create embeddings
+>>>>>>> main
         chunks = self.chunk_text(text)
         embeddings = self.create_embeddings(chunks)
         
@@ -133,17 +149,33 @@ class ResumeAnalyzer:
             }
         }
     
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
     def save_embeddings(self, path: str = "data/embeddings"):
         """Save embeddings and metadata to disk"""
         os.makedirs(path, exist_ok=True)
         
+<<<<<<< HEAD
         if len(self.embeddings) > 0:
             np.save(f"{path}/embeddings.npy", self.embeddings)
         
+=======
+        # Save embeddings
+        if len(self.embeddings) > 0:
+            np.save(f"{path}/embeddings.npy", self.embeddings)
+        
+        # Save metadata
+>>>>>>> main
         metadata = [r['metadata'] for r in self.resumes]
         with open(f"{path}/metadata.json", 'w') as f:
             json.dump(metadata, f, indent=2)
         
+<<<<<<< HEAD
+=======
+        # Save chunks
+>>>>>>> main
         chunks_data = [{'filename': r['metadata']['filename'], 'chunks': r['chunks']} 
                       for r in self.resumes]
         with open(f"{path}/chunks.json", 'w') as f:
@@ -157,16 +189,32 @@ class ResumeAnalyzer:
     def load_embeddings(self, path: str = "data/embeddings") -> bool:
         """Load embeddings and metadata from disk"""
         try:
+<<<<<<< HEAD
+=======
+            # Load embeddings
+>>>>>>> main
             embeddings_path = f"{path}/embeddings.npy"
             if os.path.exists(embeddings_path):
                 self.embeddings = np.load(embeddings_path)
             
+<<<<<<< HEAD
             with open(f"{path}/metadata.json", 'r') as f:
                 metadata = json.load(f)
             
             with open(f"{path}/chunks.json", 'r') as f:
                 chunks_data = json.load(f)
             
+=======
+            # Load metadata
+            with open(f"{path}/metadata.json", 'r') as f:
+                metadata = json.load(f)
+            
+            # Load chunks
+            with open(f"{path}/chunks.json", 'r') as f:
+                chunks_data = json.load(f)
+            
+            # Reconstruct resumes
+>>>>>>> main
             self.resumes = []
             for i, meta in enumerate(metadata):
                 chunks_info = next((c for c in chunks_data if c['filename'] == meta['filename']), None)
@@ -184,6 +232,7 @@ class ResumeAnalyzer:
         except Exception as e:
             print(f"❌ Failed to load embeddings: {e}")
             return False
+<<<<<<< HEAD
     
     def build_faiss_index(self, resumes_data: List[Dict[str, Any]] = None):
         """Build FAISS index from embeddings"""
@@ -296,6 +345,9 @@ class ResumeAnalyzer:
         
         semantic_results.sort(key=lambda x: x['score'], reverse=True)
         return semantic_results[:top_k]
+=======
+   
+>>>>>>> main
     
     def test_embeddings(self, pdf_path: str):
         """Test embedding generation"""
@@ -319,6 +371,7 @@ class ResumeAnalyzer:
             print(f"❌ Test failed: {e}")
         
         print("="*60)
+<<<<<<< HEAD
     
     def test_vector_search(self):
         """Test vector search functionality"""
@@ -342,6 +395,8 @@ class ResumeAnalyzer:
             results = self.semantic_search(query, top_k=2)
             for r in results:
                 print(f"  Rank {r['rank']}: {r['candidate_name']} - Score: {r['score']}")
+=======
+>>>>>>> main
 
 if __name__ == "__main__":
     analyzer = ResumeAnalyzer()
