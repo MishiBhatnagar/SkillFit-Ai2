@@ -1,5 +1,9 @@
 """
+<<<<<<< HEAD
+RAG-based Resume Analyzer Core Module - Day 4 (Complete)
+=======
 RAG-based Resume Analyzer Core Module - Day 4 (Embeddings)
+>>>>>>> main
 """
 
 import numpy as np
@@ -99,21 +103,29 @@ class ResumeAnalyzer:
         """Process a single resume with embeddings"""
         print(f"\n  📄 Processing: {os.path.basename(pdf_path)}")
         
-        # Extract text
         text = self.extract_text_from_pdf(pdf_path)
         if not text:
             raise ValueError("No text extracted from PDF")
         
+<<<<<<< HEAD
+        contact = self.extract_contact_info(text)
+        skills = self.extract_skills(text)
+        
+=======
         # Extract metadata
         contact = self.extract_contact_info(text)
         skills = self.extract_skills(text)
         
         # Get candidate name
+>>>>>>> main
         if not candidate_name:
             candidate_name = os.path.splitext(os.path.basename(pdf_path))[0]
             candidate_name = candidate_name.replace('_', ' ').title()
         
+<<<<<<< HEAD
+=======
         # Chunk text and create embeddings
+>>>>>>> main
         chunks = self.chunk_text(text)
         embeddings = self.create_embeddings(chunks)
         
@@ -137,21 +149,33 @@ class ResumeAnalyzer:
             }
         }
     
+<<<<<<< HEAD
+=======
 
+>>>>>>> main
     def save_embeddings(self, path: str = "data/embeddings"):
         """Save embeddings and metadata to disk"""
         os.makedirs(path, exist_ok=True)
         
+<<<<<<< HEAD
+        if len(self.embeddings) > 0:
+            np.save(f"{path}/embeddings.npy", self.embeddings)
+        
+=======
         # Save embeddings
         if len(self.embeddings) > 0:
             np.save(f"{path}/embeddings.npy", self.embeddings)
         
         # Save metadata
+>>>>>>> main
         metadata = [r['metadata'] for r in self.resumes]
         with open(f"{path}/metadata.json", 'w') as f:
             json.dump(metadata, f, indent=2)
         
+<<<<<<< HEAD
+=======
         # Save chunks
+>>>>>>> main
         chunks_data = [{'filename': r['metadata']['filename'], 'chunks': r['chunks']} 
                       for r in self.resumes]
         with open(f"{path}/chunks.json", 'w') as f:
@@ -165,11 +189,22 @@ class ResumeAnalyzer:
     def load_embeddings(self, path: str = "data/embeddings") -> bool:
         """Load embeddings and metadata from disk"""
         try:
+<<<<<<< HEAD
+=======
             # Load embeddings
+>>>>>>> main
             embeddings_path = f"{path}/embeddings.npy"
             if os.path.exists(embeddings_path):
                 self.embeddings = np.load(embeddings_path)
             
+<<<<<<< HEAD
+            with open(f"{path}/metadata.json", 'r') as f:
+                metadata = json.load(f)
+            
+            with open(f"{path}/chunks.json", 'r') as f:
+                chunks_data = json.load(f)
+            
+=======
             # Load metadata
             with open(f"{path}/metadata.json", 'r') as f:
                 metadata = json.load(f)
@@ -179,6 +214,7 @@ class ResumeAnalyzer:
                 chunks_data = json.load(f)
             
             # Reconstruct resumes
+>>>>>>> main
             self.resumes = []
             for i, meta in enumerate(metadata):
                 chunks_info = next((c for c in chunks_data if c['filename'] == meta['filename']), None)
@@ -196,7 +232,122 @@ class ResumeAnalyzer:
         except Exception as e:
             print(f"❌ Failed to load embeddings: {e}")
             return False
+<<<<<<< HEAD
+    
+    def build_faiss_index(self, resumes_data: List[Dict[str, Any]] = None):
+        """Build FAISS index from embeddings"""
+        if resumes_data:
+            all_embeddings = []
+            self.resumes = []
+            self.metadata = []
+            
+            for res_idx, resume in enumerate(resumes_data):
+                for chunk_idx, emb in enumerate(resume['embeddings']):
+                    all_embeddings.append(emb)
+                    self.resumes.append(resume)
+                    self.metadata.append({
+                        'resume_idx': res_idx,
+                        'chunk_idx': chunk_idx,
+                        'candidate': resume['metadata']['candidate_name'],
+                        'email': resume['metadata']['email'],
+                        'filename': resume['metadata']['filename']
+                    })
+            
+            if not all_embeddings:
+                raise ValueError("No embeddings to index")
+            
+            self.embeddings = np.array(all_embeddings).astype('float32')
+        
+        if len(self.embeddings) == 0:
+            raise ValueError("No embeddings available")
+        
+        dimension = self.embeddings.shape[1]
+        self.index = faiss.IndexFlatL2(dimension)
+        self.index.add(self.embeddings)
+        
+        print(f"✅ FAISS index built!")
+        print(f"   - Vectors: {self.index.ntotal}")
+        print(f"   - Dimension: {dimension}")
+        
+        return self.index
+    
+    def save_faiss_index(self, path: str = "data/embeddings/faiss.index"):
+        """Save FAISS index to disk"""
+        if self.index:
+            faiss.write_index(self.index, path)
+            print(f"✅ FAISS index saved to {path}")
+    
+    def load_faiss_index(self, path: str = "data/embeddings/faiss.index") -> bool:
+        """Load FAISS index from disk"""
+        if os.path.exists(path):
+            self.index = faiss.read_index(path)
+            print(f"✅ FAISS index loaded from {path}")
+            print(f"   - Vectors: {self.index.ntotal}")
+            print(f"   - Dimension: {self.index.d}")
+            return True
+        return False
+    
+    def semantic_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        """Search for resumes using semantic similarity"""
+        if self.index is None:
+            raise ValueError("No FAISS index found. Call build_faiss_index() first.")
+        
+        query_emb = self.model.encode([query]).astype('float32')
+        distances, indices = self.index.search(query_emb, top_k * 2)
+        
+        results = []
+        seen_candidates = set()
+        
+        for i, idx in enumerate(indices[0]):
+            if idx < len(self.metadata):
+                meta = self.metadata[idx]
+                resume = self.resumes[meta['resume_idx']]
+                
+                if meta['candidate'] in seen_candidates:
+                    continue
+                seen_candidates.add(meta['candidate'])
+                
+                distance = distances[0][i]
+                similarity = max(0, min(100, 100 - distance))
+                matched_chunk = resume['chunks'][meta['chunk_idx']]
+                
+                results.append({
+                    'rank': len(results) + 1,
+                    'candidate_name': meta['candidate'],
+                    'email': meta['email'],
+                    'filename': meta['filename'],
+                    'skills': resume['metadata']['skills'],
+                    'score': round(similarity, 2),
+                    'distance': round(float(distance), 4),
+                    'matched_chunk': matched_chunk[:300] + "..." if len(matched_chunk) > 300 else matched_chunk
+                })
+                
+                if len(results) >= top_k:
+                    break
+        
+        return results
+    
+    def hybrid_search(self, query: str, top_k: int = 5, 
+                     skill_weight: float = 0.3) -> List[Dict[str, Any]]:
+        """Combine semantic search with skill matching"""
+        semantic_results = self.semantic_search(query, top_k * 2)
+        
+        query_lower = query.lower()
+        for result in semantic_results:
+            skill_matches = sum(1 for skill in result['skills'] 
+                              if skill.lower() in query_lower)
+            skill_score = (skill_matches / max(len(result['skills']), 1)) * 100
+            
+            combined = (result['score'] * (1 - skill_weight) + 
+                       skill_score * skill_weight)
+            result['score'] = round(combined, 2)
+            result['skill_match_score'] = round(skill_score, 2)
+        
+        semantic_results.sort(key=lambda x: x['score'], reverse=True)
+        return semantic_results[:top_k]
+=======
    
+>>>>>>> main
     
     def test_embeddings(self, pdf_path: str):
         """Test embedding generation"""
@@ -220,9 +371,34 @@ class ResumeAnalyzer:
             print(f"❌ Test failed: {e}")
         
         print("="*60)
+<<<<<<< HEAD
+    
+    def test_vector_search(self):
+        """Test vector search functionality"""
+        print("\n" + "="*60)
+        print("🔍 Testing Vector Search")
+        print("="*60)
+        
+        if self.index is None:
+            print("No index found. Please build index first!")
+            return
+        
+        test_queries = [
+            "Python developer with machine learning",
+            "Data scientist with SQL",
+            "DevOps engineer with Docker",
+            "Full stack developer with React"
+        ]
+        
+        for query in test_queries:
+            print(f"\n📝 Query: {query}")
+            results = self.semantic_search(query, top_k=2)
+            for r in results:
+                print(f"  Rank {r['rank']}: {r['candidate_name']} - Score: {r['score']}")
+=======
+>>>>>>> main
 
 if __name__ == "__main__":
-    # Quick test
     analyzer = ResumeAnalyzer()
     test_file = "data/resumes/alex_chen_python.pdf"
     if os.path.exists(test_file):
