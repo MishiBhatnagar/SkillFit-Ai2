@@ -258,23 +258,6 @@ class ResumeAnalyzer:
         
         return results
     
-    def hybrid_search(self, query: str, top_k: int = 5, skill_weight: float = 0.3) -> List[Dict[str, Any]]:
-        """Combine semantic search with skill matching"""
-        semantic_results = self.semantic_search(query, top_k * 2)
-        
-        query_lower = query.lower()
-        for result in semantic_results:
-            skill_matches = sum(1 for skill in result['skills'] 
-                              if skill.lower() in query_lower)
-            skill_score = (skill_matches / max(len(result['skills']), 1)) * 100
-            
-            combined = (result['score'] * (1 - skill_weight) + skill_score * skill_weight)
-            result['score'] = round(combined, 2)
-            result['skill_match_score'] = round(skill_score, 2)
-        
-        semantic_results.sort(key=lambda x: x['score'], reverse=True)
-        return semantic_results[:top_k]
-    
     def test_embeddings(self, pdf_path: str):
         """Test embedding generation"""
         print("\n" + "="*60)
