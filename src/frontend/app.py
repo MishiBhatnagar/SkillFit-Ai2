@@ -80,6 +80,7 @@ st.markdown("### AI-Powered Resume Matching using RAG Technology")
 # API Configuration
 import os
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
+
 # Initialize session state
 if 'matches' not in st.session_state:
     st.session_state.matches = []
@@ -223,17 +224,12 @@ with tab2:
         st.markdown("### Match Settings")
         st.caption("Higher number shows more candidates")
         
-        # Example job descriptions
-        with st.expander("📋 Examples"):
-            if st.button("Python Developer"):
-                st.session_state.job_desc_input = "Looking for a Python developer with FastAPI, Docker, and AWS experience"
-                st.rerun()
-            if st.button("Data Scientist"):
-                st.session_state.job_desc_input = "Seeking Data Scientist with Python, TensorFlow, and SQL skills"
-                st.rerun()
-            if st.button("DevOps Engineer"):
-                st.session_state.job_desc_input = "Need DevOps engineer with Kubernetes, Docker, and CI/CD experience"
-                st.rerun()
+        # Example job descriptions - SIMPLE TEXT EXAMPLES (NO BUTTONS)
+        with st.expander("📋 Example Job Descriptions"):
+            st.markdown("**Copy and paste these examples:**")
+            st.code("Looking for a Python developer with FastAPI, Docker, and AWS experience", language="text")
+            st.code("Seeking Data Scientist with Python, TensorFlow, and SQL skills", language="text")
+            st.code("Need DevOps engineer with Kubernetes, Docker, and CI/CD experience", language="text")
         
         if st.button("🔍 Find Matches", use_container_width=True, type="primary"):
             if job_desc:

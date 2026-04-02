@@ -55,7 +55,15 @@ class ResumeMetadata(BaseModel):
     phone: str
     skills: List[str]
     filename: str
-    skill_count: int
+    chunk_count: int
+    embedding_dim: int
+    processed_date: str
+    skill_count: int = 0
+
+    def __init__(self, **data):
+        if 'skill_count' not in data:
+            data['skill_count'] = len(data.get('skills', []))
+        super().__init__(**data)
 
 class HealthResponse(BaseModel):
     status: str
@@ -123,7 +131,7 @@ async def upload_resume(
                 print(f"Error processing {pdf}: {e}")
                 continue
         
-        # Store resumes (we'll add vector search later)
+        # Store resumes
         analyzer.resumes = all_resumes
         
         return {
@@ -140,7 +148,14 @@ async def upload_resume(
 @app.get("/resumes/", response_model=List[ResumeMetadata], tags=["Resumes"])
 async def list_resumes():
     """Get list of all processed resumes"""
-    return [r['metadata'] for r in analyzer.resumes]
+    result = []
+    for r in analyzer.resumes:
+        meta = r['metadata'].copy()
+        # Ensure skill_count exists
+        if 'skill_count' not in meta:
+            meta['skill_count'] = len(meta.get('skills', []))
+        result.append(meta)
+    return result
 
 # Get resume by filename
 @app.get("/resumes/{filename}", tags=["Resumes"])
@@ -148,20 +163,21 @@ async def get_resume(filename: str):
     """Get specific resume by filename"""
     for resume in analyzer.resumes:
         if resume['metadata']['filename'] == filename:
-            return resume['metadata']
+            meta = resume['metadata'].copy()
+            if 'skill_count' not in meta:
+                meta['skill_count'] = len(meta.get('skills', []))
+            return meta
     raise HTTPException(404, "Resume not found")
 
-# Match job (placeholder for now)
+# Match job
 @app.post("/match-job/", response_model=List[MatchResult], tags=["Matching"])
 async def match_job(job: JobDescription):
     """
     Match resumes against job description
-    (Basic implementation - vector search coming in Day 4)
     """
     if not analyzer.resumes:
         raise HTTPException(400, "No resumes loaded")
     
-    # Simple keyword matching for now
     results = []
     job_words = set(job.text.lower().split())
     
