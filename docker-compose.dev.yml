@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: skillfit-backend-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=development
+    command: uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - skillfit-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: skillfit-frontend-dev
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./src/frontend:/app/src/frontend
+    environment:
+      - API_URL=http://backend:8000
+      - ENVIRONMENT=development
+    depends_on:
+      - backend
+    networks:
+      - skillfit-network
+
+networks:
+  skillfit-network:
+    driver: bridge
