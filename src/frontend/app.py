@@ -78,8 +78,8 @@ st.markdown('<div class="main-header"><h1>🎯 SkillFit AI - Resume Analyzer</h1
 st.markdown("### AI-Powered Resume Matching using RAG Technology")
 
 # API Configuration
-API_URL = "http://localhost:8000"
-
+import os
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 # Initialize session state
 if 'matches' not in st.session_state:
     st.session_state.matches = []
