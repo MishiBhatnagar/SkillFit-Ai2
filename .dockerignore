@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Data (use volumes instead of copying)
+data/embeddings/*
+!data/embeddings/.gitkeep
+data/resumes/*
+!data/resumes/.gitkeep
+
+# Logs
+*.log
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# OS
+Thumbs.db
+Desktop.ini
