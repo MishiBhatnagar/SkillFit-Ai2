@@ -77,9 +77,9 @@ st.markdown('<div class="main-header"><h1>🎯 SkillFit AI - Resume Analyzer</h1
             unsafe_allow_html=True)
 st.markdown("### AI-Powered Resume Matching using RAG Technology")
 
-# API Configuration
+# API Configuration - FIXED: Use environment variable with fallback
 import os
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
+API_URL = os.environ.get("API_URL", "https://skillfit-backend.onrender.com")  # Changed from localhost to your Render URL
 
 # Initialize session state
 if 'matches' not in st.session_state:
@@ -94,9 +94,9 @@ with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/artificial-intelligence.png")
     st.markdown("## 🔍 API Status")
     
-    # Check API connection
+    # Check API connection - FIXED: Increased timeout and removed trailing slash
     try:
-        response = requests.get(f"{API_URL}/health", timeout=2)
+        response = requests.get(f"{API_URL}/health", timeout=10)  # Increased timeout
         if response.status_code == 200:
             data = response.json()
             st.success("✅ Backend Connected")
@@ -105,16 +105,17 @@ with st.sidebar:
             
             # Fetch resumes for display
             try:
-                resumes_response = requests.get(f"{API_URL}/resumes/", timeout=2)
+                resumes_response = requests.get(f"{API_URL}/resumes", timeout=10)  # Removed trailing slash
                 if resumes_response.status_code == 200:
                     st.session_state.resumes = resumes_response.json()
             except:
                 pass
         else:
             st.error("❌ Backend Error")
-    except:
+    except Exception as e:
         st.error("❌ Backend Not Connected")
-        st.info("Run: python src/backend/main.py")
+        st.info(f"Backend URL: {API_URL}")
+        st.info("Make sure backend is deployed on Render")
     
     st.markdown("---")
     st.markdown("### 📖 How to Use")
@@ -137,7 +138,7 @@ with st.sidebar:
 tab1, tab2, tab3 = st.tabs(["📤 Upload Resumes", "🎯 Match Job", "📊 Dashboard"])
 
 # ============================================
-# TAB 1: UPLOAD RESUMES
+# TAB 1: UPLOAD RESUMES - FIXED VERSION
 # ============================================
 with tab1:
     st.header("Upload Resumes")
@@ -172,8 +173,13 @@ with tab1:
                 status_text.text(f"Processing {file.name}...")
                 files = {"file": (file.name, file.getvalue(), "application/pdf")}
                 
+                # FIXED: Removed trailing slash and increased timeout to 120 seconds
                 try:
-                    response = requests.post(f"{API_URL}/upload-resume/", files=files, timeout=30)
+                    response = requests.post(
+                        f"{API_URL}/upload-resume",  # No trailing slash!
+                        files=files, 
+                        timeout=120  # Increased timeout for cold starts
+                    )
                     if response.status_code == 200:
                         result = response.json()
                         with results_container:
@@ -183,6 +189,10 @@ with tab1:
                         with results_container:
                             st.error(f"❌ Error with {file.name}: {response.text}")
                         st.session_state.upload_status[file.name] = "error"
+                except requests.exceptions.Timeout:
+                    with results_container:
+                        st.error(f"❌ Timeout: {file.name} - Backend may be waking up. Please try again.")
+                    st.session_state.upload_status[file.name] = "error"
                 except Exception as e:
                     with results_container:
                         st.error(f"❌ Failed: {file.name} - {str(e)}")
@@ -196,14 +206,14 @@ with tab1:
             
             # Refresh resume list
             try:
-                response = requests.get(f"{API_URL}/resumes/")
+                response = requests.get(f"{API_URL}/resumes", timeout=10)  # No trailing slash
                 if response.status_code == 200:
                     st.session_state.resumes = response.json()
             except:
                 pass
 
 # ============================================
-# TAB 2: MATCH JOB
+# TAB 2: MATCH JOB - FIXED VERSION
 # ============================================
 with tab2:
     st.header("Match Job Description")
@@ -235,10 +245,11 @@ with tab2:
             if job_desc:
                 with st.spinner("Analyzing and matching..."):
                     try:
+                        # FIXED: No trailing slash on endpoint
                         response = requests.post(
-                            f"{API_URL}/match-job/", 
+                            f"{API_URL}/match-job",  # No trailing slash!
                             json={"text": job_desc, "top_k": top_k},
-                            timeout=10
+                            timeout=30  # Increased timeout
                         )
                         
                         if response.status_code == 200:
@@ -249,7 +260,7 @@ with tab2:
                         else:
                             st.error(f"Error: {response.status_code} - {response.text}")
                     except requests.exceptions.ConnectionError:
-                        st.error("Cannot connect to backend. Make sure it's running on port 8000!")
+                        st.error("Cannot connect to backend. Make sure it's running!")
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
             else:
@@ -325,7 +336,7 @@ with tab2:
                     st.info(match['matched_chunk'])
 
 # ============================================
-# TAB 3: DASHBOARD
+# TAB 3: DASHBOARD - FIXED VERSION
 # ============================================
 with tab3:
     st.header("Analytics Dashboard")
@@ -337,9 +348,9 @@ with tab3:
             st.cache_data.clear()
             st.rerun()
     
-    # Fetch resumes
+    # Fetch resumes - FIXED: No trailing slash
     try:
-        response = requests.get(f"{API_URL}/resumes/", timeout=5)
+        response = requests.get(f"{API_URL}/resumes", timeout=10)  # No trailing slash
         if response.status_code == 200:
             resumes = response.json()
             st.session_state.resumes = resumes
@@ -418,8 +429,8 @@ with tab3:
             else:
                 st.info("No resumes uploaded yet. Go to the Upload tab to add resumes.")
     except requests.exceptions.ConnectionError:
-        st.error("Cannot connect to backend. Make sure it's running on port 8000!")
-        st.code("python src/backend/main.py", language="bash")
+        st.error("Cannot connect to backend. Make sure it's running!")
+        st.code(f"Backend URL: {API_URL}", language="text")
     except Exception as e:
         st.error(f"Error loading dashboard: {str(e)}")
 
