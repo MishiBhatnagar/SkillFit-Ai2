@@ -14,6 +14,10 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# ✅ PRE-DOWNLOAD THE EMBEDDING MODEL DURING BUILD
+# This downloads the ~90MB model once, not on every cold start
+RUN python -c "from sentence_transformers import SentenceTransformer; print('🔄 Downloading embedding model...'); model = SentenceTransformer('all-MiniLM-L6-v2'); print('✅ Model downloaded and cached!')"
+
 # Copy application code
 COPY src/ ./src/
 COPY data/ ./data/
